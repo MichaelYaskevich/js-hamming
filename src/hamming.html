@@ -80,13 +80,10 @@
 <script>
 	document.getElementById('beforeError').innerText = "Here will be information about mistakes";
 
-	let leng;
-	let message;
-
 	function CheckMessage(message) {
 		if (message == undefined || message.length == 0)
 			return undefined;
-		leng = message.length;
+		let leng = message.length;
 		for (let i = 0; i < leng; i++) {
 			if (message.charAt(i) != 0 && message.charAt(i) != 1)
 				return undefined;
@@ -103,17 +100,19 @@
 		return str;
 	}
 
-	function GetControlByte(transM, wordM){
-		let len = transM.length;
-		let sum = 0;
-		for(let i=0; i < len; i++){
-			sum += transM[i] * wordM[i];
+	function GetParityBits(wordMatrix){
+		// Вычисляет xor по всем позициям единиц матрицы.
+		let parity_bits = 0
+		for (let i = 0; i < wordMatrix.length; i++) {
+			if (wordMatrix[i] == 1){
+				parity_bits ^= (i+1)
+			}
 		}
-		return sum%2;
+		return parity_bits
 	}
 
 	function code() {
-		message = document.getElementById('mes').value;
+		let message = document.getElementById('mes').value;
 		if (CheckMessage(message) == undefined)
 			document.getElementById('mes').value = "Here should be only 0 or 1";
 		else if (message.length != 4)
@@ -122,6 +121,7 @@
 			message = ArrayFromString(message);
 			let wordMatrix = new Array(7);
 
+			// Кладем строку в матрицу и 0 для битов четности
 			let a = 1;
 			let count = 0;
 			let len = wordMatrix.length;
@@ -135,18 +135,12 @@
 					count++;
 				}
 			}
-			let transMatrixString1 = ArrayFromString("1010101");
-			let transMatrixString2 = ArrayFromString("0110011");
-			let transMatrixString3 = ArrayFromString("0001111");
-			byte1 = GetControlByte(transMatrixString1, wordMatrix);
-			byte2 = GetControlByte(transMatrixString2, wordMatrix);
-			byte3 = GetControlByte(transMatrixString3, wordMatrix);
 
-			let controlBytes = new Array();
-			controlBytes.push(byte1);
-			controlBytes.push(byte2);
-			controlBytes.push(byte3);
+			// Вычисляем биты четности
+			let parity_bits = GetParityBits(wordMatrix)
+			let controlBytes = [parity_bits%2, (parity_bits >> 1)%2, (parity_bits >> 2)%2];
 
+			// Кладем биты четности в матрицу
 			a = 1;
 			count = 0;
 			for (let i = 0; i < len; i++) {
@@ -161,7 +155,7 @@
 		}
 	}
 	function decode() {
-		message = document.getElementById('mes_cod').value;
+		let message = document.getElementById('mes_cod').value;
 		if (CheckMessage(message) == undefined)
 			document.getElementById('mes_cod').value = "Here should be only 0 or 1";
 		else if (message.length != 7)
@@ -169,14 +163,9 @@
 		else {
 			let wordMatrix = ArrayFromString(message);
 
-			let transMatrixString1 = ArrayFromString("1010101");
-			let transMatrixString2 = ArrayFromString("0110011");
-			let transMatrixString3 = ArrayFromString("0001111");
-			let syndromeMatrixString1 = GetControlByte(transMatrixString1, wordMatrix);
-			let syndromeMatrixString2 = GetControlByte(transMatrixString2, wordMatrix);
-			let syndromeMatrixString3 = GetControlByte(transMatrixString3, wordMatrix);
-			let numberWithError = syndromeMatrixString3 * 4 +
-				syndromeMatrixString2 * 2 + syndromeMatrixString1;
+			let numberWithError = GetParityBits(wordMatrix);
+
+			// Исправляем ошибку
 			document.getElementById('beforeError').innerText = "";
 			if (numberWithError != 0) {
 				wordMatrix[numberWithError - 1] = (wordMatrix[numberWithError - 1] + 1) % 2;
@@ -184,6 +173,8 @@
 			}
 			else
 				document.getElementById('error').innerText = "There were no mistakes."
+
+			// Собираем результирующую строку
 			let resultStr = "";
 			let len = wordMatrix.length;
 			let a = 1;
